@@ -1,6 +1,6 @@
 # Pay & Debt
 
-A small native Android app (plain Java, no Kotlin, no outside libraries) that answers two questions:
+A small native Android app (plain Java, no Kotlin) built with Google's Material 3 components. It answers two questions:
 
 1. **When will I be debt-free?**
 2. **How much can I spend this week without missing my debt payment?**
@@ -20,6 +20,10 @@ All data stays on your phone. There is no account, no server and no internet per
 
 Money is whole dirhams ("dh"). Weeks start on Monday.
 
+## Look and feel
+
+Material 3: tonal cards, bottom navigation bar, outlined text fields, segmented buttons, M3 dialogs and type scale. It follows the phone's light/dark setting. On Android 12+ the colours come from the wallpaper (dynamic colour); on older phones, or if you delete the `DynamicColors` line in `MainActivity`, it uses the green theme in `res/values/colors.xml`.
+
 ## Get the APK
 
 Every push to `main` builds the app on GitHub:
@@ -31,7 +35,7 @@ Open the file on your phone and allow "install from this source" when asked. Ins
 
 ## Build it yourself
 
-Needs JDK 17, the Android SDK (platform 35, build-tools 35.0.0) and Gradle 8.10.
+Needs JDK 17, the Android SDK (platform 35, build-tools 35.0.0), Gradle 8.10 and internet access for the one dependency, `com.google.android.material:material:1.12.0`.
 
 ```
 gradle assembleRelease

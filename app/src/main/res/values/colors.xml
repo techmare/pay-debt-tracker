@@ -1,5 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bg">#F4F6F5</color>
-    <color name="icon_bg">#1B7F4B</color>
+    <!-- Launcher icon background -->
+    <color name="icon_bg">#146C43</color>
+
+    <!-- Material 3 colour roles, light (green seed). Wallpaper colours replace these on Android 12+. -->
+    <color name="m3_primary">#146C43</color>
+    <color name="m3_on_primary">#FFFFFF</color>
+    <color name="m3_primary_container">#A0F4BE</color>
+    <color name="m3_on_primary_container">#002111</color>
+    <color name="m3_secondary">#4E6354</color>
+    <color name="m3_on_secondary">#FFFFFF</color>
+    <color name="m3_secondary_container">#D0E8D4</color>
+    <color name="m3_on_secondary_container">#0B1F14</color>
+    <color name="m3_tertiary">#3A6471</color>
+    <color name="m3_on_tertiary">#FFFFFF</color>
+    <color name="m3_tertiary_container">#BDE9F9</color>
+    <color name="m3_on_tertiary_container">#001F28</color>
+    <color name="m3_error">#BA1A1A</color>
+    <color name="m3_on_error">#FFFFFF</color>
+    <color name="m3_error_container">#FFDAD6</color>
+    <color name="m3_on_error_container">#410002</color>
+    <color name="m3_background">#F6FBF4</color>
+    <color name="m3_on_background">#181D19</color>
+    <color name="m3_surface">#F6FBF4</color>
+    <color name="m3_on_surface">#181D19</color>
+    <color name="m3_surface_variant">#DCE5DC</color>
+    <color name="m3_on_surface_variant">#404942</color>
+    <color name="m3_outline">#707972</color>
+    <color name="m3_outline_variant">#C0C9C0</color>
+    <color name="m3_inverse_surface">#2D322D</color>
+    <color name="m3_inverse_on_surface">#EEF2EB</color>
+    <color name="m3_inverse_primary">#85D7A3</color>
+    <color name="m3_container_lowest">#FFFFFF</color>
+    <color name="m3_container_low">#F0F5EE</color>
+    <color name="m3_container">#EAEFE8</color>
+    <color name="m3_container_high">#E4EAE3</color>
+    <color name="m3_container_highest">#DFE4DD</color>
 </resources>

@@ -2,13 +2,13 @@ package com.techmare.paydebt;
 
 import android.content.Intent;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
+
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.materialswitch.MaterialSwitch;
 
 import com.techmare.paydebt.core.Budget;
 import com.techmare.paydebt.core.Fmt;
@@ -24,21 +24,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Builds the four tabs. */
+/** Builds the four tabs with Material 3 components. */
 final class Screens {
     private Screens() {}
 
     private static final int HISTORY_LIMIT = 300;
     private static final int WHAT_IF_EXTRA = 100;
 
-    private static TextView title(MainActivity a, String s) {
-        return Ui.text(a, s, 26, Ui.TEXT, true);
+    private static void header(MainActivity a, LinearLayout out, String title, String subtitle) {
+        out.addView(Ui.text(a, title, Ui.HEADLINE_MEDIUM, Ui.ON_SURFACE));
+        TextView sub = Ui.text(a, subtitle, Ui.BODY_MEDIUM, Ui.ON_SURFACE_VARIANT);
+        sub.setPadding(0, Ui.dp(a, 4), 0, Ui.dp(a, 20));
+        out.addView(sub);
     }
 
-    private static LinearLayout.LayoutParams space(MainActivity a, int topDp) {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP);
-        lp.setMargins(0, Ui.dp(a, topDp), 0, 0);
-        return lp;
+    private static TextView line(MainActivity a, LinearLayout parent, String s, int appearance, int colorAttr, int topDp) {
+        TextView t = Ui.text(a, s, appearance, colorAttr);
+        Ui.add(parent, t, topDp);
+        return t;
     }
 
     // ---------- Home ----------
@@ -48,71 +51,62 @@ final class Screens {
         final LocalDate today = LocalDate.now();
         final ZoneId zone = ZoneId.systemDefault();
 
-        out.addView(title(a, "Pay & Debt"));
-        TextView date = Ui.text(a, Fmt.date(today), 14, Ui.MUTED, false);
-        date.setPadding(0, 0, 0, Ui.dp(a, 14));
-        out.addView(date);
-
-        if (d.debts.isEmpty()) {
-            LinearLayout c = Ui.card(a);
-            c.addView(Ui.text(a, "Welcome", 18, Ui.TEXT, true));
-            TextView t = Ui.text(a, "Add what you owe and how much you will pay each week. "
-                    + "The app shows when you will be debt-free and how much you can safely spend.", 14, Ui.MUTED, false);
-            t.setPadding(0, Ui.dp(a, 6), 0, Ui.dp(a, 12));
-            c.addView(t);
-            c.addView(Ui.button(a, "Set up", Ui.GREEN, v -> Dialogs.setup(a)));
-            out.addView(c);
-        }
+        header(a, out, "Pay & Debt", Fmt.date(today));
 
         long remaining = d.totalRemaining();
         long target = d.settings.weeklyDebtTarget;
         long paidWeek = d.sumThisWeek(Data.Entry.DEBT, today, zone);
 
-        // You owe
-        if (!d.debts.isEmpty()) {
-            LinearLayout c = Ui.card(a);
-            c.addView(Ui.text(a, "You owe", 14, Ui.MUTED, false));
-            c.addView(Ui.text(a, Fmt.dh(remaining), 38, remaining > 0 ? Ui.TEXT : Ui.GREEN, true));
+        if (d.debts.isEmpty()) {
+            MaterialCardView card = Ui.card(a, Ui.PRIMARY_CONTAINER);
+            LinearLayout c = Ui.inner(card);
+            c.addView(Ui.text(a, "Welcome", Ui.TITLE_LARGE, Ui.ON_PRIMARY_CONTAINER));
+            line(a, c, "Add what you owe and how much you will pay each week. "
+                    + "The app shows when you will be debt-free and how much you can safely spend.",
+                    Ui.BODY_MEDIUM, Ui.ON_PRIMARY_CONTAINER, 8);
+            Ui.add(c, Ui.filled(a, "Set up", 0, v -> Dialogs.setup(a)), 16);
+            out.addView(card);
+        } else {
+            // You owe
+            MaterialCardView card = Ui.card(a, Ui.PRIMARY_CONTAINER);
+            LinearLayout c = Ui.inner(card);
+            c.addView(Ui.text(a, "You owe", Ui.LABEL_LARGE, Ui.ON_PRIMARY_CONTAINER));
+            c.addView(Ui.text(a, Fmt.dh(remaining), Ui.DISPLAY_MEDIUM, Ui.ON_PRIMARY_CONTAINER));
             int pct = Payoff.percentPaid(d.totalStart(), remaining);
-            c.addView(Ui.bar(a, pct, Ui.GREEN));
+            c.addView(Ui.progress(a, pct, Ui.color(a, Ui.PRIMARY), Ui.color(a, Ui.SECONDARY_CONTAINER)));
             c.addView(Ui.text(a, remaining > 0
                     ? pct + "% paid back of " + Fmt.dh(d.totalStart())
-                    : "You are debt free.", 13, Ui.MUTED, false));
+                    : "You are debt free.", Ui.BODY_MEDIUM, Ui.ON_PRIMARY_CONTAINER));
             Data.Debt focus = d.focusDebt();
             if (focus != null && d.debts.size() > 1) {
-                TextView f = Ui.text(a, "Pay off next: " + focus.name + " (" + Fmt.dh(d.balance(focus)) + ")",
-                        14, Ui.TEXT, false);
-                f.setPadding(0, Ui.dp(a, 8), 0, 0);
-                c.addView(f);
+                line(a, c, "Pay off next: " + focus.name + " (" + Fmt.dh(d.balance(focus)) + ")",
+                        Ui.BODY_MEDIUM, Ui.ON_PRIMARY_CONTAINER, 8);
             }
-            out.addView(c);
+            out.addView(card);
         }
 
         // Payoff date
         if (remaining > 0) {
-            LinearLayout c = Ui.card(a);
+            MaterialCardView card = Ui.card(a, Ui.CONTAINER_HIGH);
+            LinearLayout c = Ui.inner(card);
             int weeks = Payoff.weeksToPayoff(remaining, target);
             if (weeks < 0) {
-                c.addView(Ui.text(a, "Payoff date", 14, Ui.MUTED, false));
-                TextView t = Ui.text(a, "Set a weekly debt payment in Settings to see when you will be done.",
-                        14, Ui.TEXT, false);
-                t.setPadding(0, Ui.dp(a, 4), 0, 0);
-                c.addView(t);
+                c.addView(Ui.text(a, "Payoff date", Ui.LABEL_LARGE, Ui.ON_SURFACE_VARIANT));
+                line(a, c, "Set a weekly debt payment in Settings to see when you will be done.",
+                        Ui.BODY_MEDIUM, Ui.ON_SURFACE, 4);
             } else {
-                c.addView(Ui.text(a, "Debt-free around", 14, Ui.MUTED, false));
-                c.addView(Ui.text(a, Fmt.date(Payoff.payoffDate(today, remaining, target)), 22, Ui.TEXT, true));
-                TextView t = Ui.text(a, Fmt.weeks(weeks) + " at " + Fmt.dh(target) + " a week", 14, Ui.MUTED, false);
-                t.setPadding(0, Ui.dp(a, 2), 0, 0);
-                c.addView(t);
+                c.addView(Ui.text(a, "Debt-free around", Ui.LABEL_LARGE, Ui.ON_SURFACE_VARIANT));
+                c.addView(Ui.text(a, Fmt.date(Payoff.payoffDate(today, remaining, target)),
+                        Ui.HEADLINE_SMALL, Ui.ON_SURFACE));
+                line(a, c, Fmt.weeks(weeks) + " at " + Fmt.dh(target) + " a week",
+                        Ui.BODY_MEDIUM, Ui.ON_SURFACE_VARIANT, 2);
                 int saved = Payoff.weeksSaved(remaining, target, WHAT_IF_EXTRA);
                 if (saved > 0) {
-                    TextView w = Ui.text(a, "Pay " + Fmt.dh(WHAT_IF_EXTRA) + " more a week and finish "
-                            + Fmt.weeks(saved) + " sooner.", 14, Ui.BLUE, false);
-                    w.setPadding(0, Ui.dp(a, 8), 0, 0);
-                    c.addView(w);
+                    line(a, c, "Pay " + Fmt.dh(WHAT_IF_EXTRA) + " more a week and finish "
+                            + Fmt.weeks(saved) + " sooner.", Ui.BODY_MEDIUM, Ui.PRIMARY, 12);
                 }
             }
-            out.addView(c);
+            out.addView(card);
         }
 
         // Free to spend
@@ -121,46 +115,48 @@ final class Screens {
             long reserved = Budget.reserved(due, paidWeek);
             long free = Budget.freeCash(d.settings.startingCash, d.sum(Data.Entry.PAY),
                     d.sum(Data.Entry.DEBT), d.sum(Data.Entry.SPEND), due, paidWeek);
-            LinearLayout c = Ui.card(a);
-            c.addView(Ui.text(a, "Free to spend", 14, Ui.MUTED, false));
-            c.addView(Ui.text(a, Fmt.dh(free), 34, free >= 0 ? Ui.GREEN : Ui.RED, true));
-            String detail = "Set aside for debt this week: " + Fmt.dh(reserved)
+            boolean ok = free >= 0;
+            int container = ok ? Ui.SECONDARY_CONTAINER : Ui.ERROR_CONTAINER;
+            int onContainer = ok ? Ui.ON_SECONDARY_CONTAINER : Ui.ON_ERROR_CONTAINER;
+            MaterialCardView card = Ui.card(a, container);
+            LinearLayout c = Ui.inner(card);
+            c.addView(Ui.text(a, "Free to spend", Ui.LABEL_LARGE, onContainer));
+            c.addView(Ui.text(a, Fmt.dh(free), Ui.DISPLAY_SMALL, onContainer));
+            line(a, c, "Set aside for debt this week: " + Fmt.dh(reserved)
                     + "\nDebt paid this week: " + Fmt.dh(paidWeek) + " of " + Fmt.dh(due)
-                    + "\nSpent this week: " + Fmt.dh(d.sumThisWeek(Data.Entry.SPEND, today, zone));
-            TextView t = Ui.text(a, detail, 14, Ui.MUTED, false);
-            t.setPadding(0, Ui.dp(a, 6), 0, 0);
-            c.addView(t);
-            if (free < 0) {
-                TextView w = Ui.text(a, "You have spent more than you have. Check History for mistakes.",
-                        14, Ui.RED, false);
-                w.setPadding(0, Ui.dp(a, 6), 0, 0);
-                c.addView(w);
+                    + "\nSpent this week: " + Fmt.dh(d.sumThisWeek(Data.Entry.SPEND, today, zone)),
+                    Ui.BODY_MEDIUM, onContainer, 8);
+            if (!ok) {
+                line(a, c, "You have spent more than you have. Check History for mistakes.",
+                        Ui.BODY_MEDIUM, onContainer, 8);
             }
-            out.addView(c);
+            out.addView(card);
         }
 
         // Quick actions
-        out.addView(Ui.button(a, "+ Got paid", Ui.GREEN, v -> Dialogs.gotPaid(a)), space(a, 0));
+        Ui.add(out, Ui.filled(a, "Got paid", R.drawable.ic_add, v -> Dialogs.gotPaid(a)), 4);
         LinearLayout row = Ui.hbox(a);
-        View paid = Ui.button(a, "Paid debt", Ui.BLUE, v -> Dialogs.paidDebt(a));
-        View spent = Ui.button(a, "Spent", Ui.AMBER, v -> Dialogs.spent(a));
         LinearLayout.LayoutParams left = new LinearLayout.LayoutParams(0, Ui.WRAP, 1f);
-        left.setMargins(0, 0, Ui.dp(a, 6), 0);
+        left.setMarginEnd(Ui.dp(a, 6));
         LinearLayout.LayoutParams right = new LinearLayout.LayoutParams(0, Ui.WRAP, 1f);
-        right.setMargins(Ui.dp(a, 6), 0, 0, 0);
-        row.addView(paid, left);
-        row.addView(spent, right);
-        out.addView(row, space(a, 10));
+        right.setMarginStart(Ui.dp(a, 6));
+        row.addView(Ui.tonal(a, "Paid debt", R.drawable.ic_check, v -> Dialogs.paidDebt(a)), left);
+        row.addView(Ui.outlined(a, "Spent", R.drawable.ic_remove, v -> Dialogs.spent(a)), right);
+        Ui.add(out, row, 10);
 
         // Streak
         if (target > 0 && !d.debts.isEmpty()) {
             int tracked = d.weeksTracked(today, zone);
             int streak = Streak.onTimeWeeks(d.debtPaidPerWeek(today, zone, tracked), tracked, target);
             if (streak > 0) {
-                TextView s = Ui.text(a, Fmt.weeks(streak) + " in a row with the debt payment on time",
-                        14, Ui.GREEN, true);
-                s.setPadding(0, Ui.dp(a, 16), 0, 0);
-                out.addView(s);
+                Chip chip = new Chip(a);
+                chip.setText(Fmt.weeks(streak) + " in a row on time");
+                chip.setChipIconResource(R.drawable.ic_flame);
+                chip.setClickable(false);
+                chip.setCheckable(false);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
+                lp.topMargin = Ui.dp(a, 16);
+                out.addView(chip, lp);
             }
         }
     }
@@ -170,193 +166,200 @@ final class Screens {
     static void history(MainActivity a, LinearLayout out) {
         final Data d = a.data;
         final ZoneId zone = ZoneId.systemDefault();
-        out.addView(title(a, "History"));
-        TextView hint = Ui.text(a, "Tap an entry to delete it.", 14, Ui.MUTED, false);
-        hint.setPadding(0, 0, 0, Ui.dp(a, 14));
-        out.addView(hint);
+        header(a, out, "History", "Tap an entry to delete it.");
 
         List<Data.Entry> all = d.newestFirst();
         if (all.isEmpty()) {
-            LinearLayout c = Ui.card(a);
-            c.addView(Ui.text(a, "Nothing here yet. Use Got paid, Paid debt or Spent on the Home tab.", 14, Ui.MUTED, false));
-            out.addView(c);
+            MaterialCardView card = Ui.card(a, Ui.CONTAINER_HIGH);
+            Ui.inner(card).addView(Ui.text(a, "Nothing here yet. Use Got paid, Paid debt or Spent on the Home tab.",
+                    Ui.BODY_MEDIUM, Ui.ON_SURFACE_VARIANT));
+            out.addView(card);
             return;
         }
+
+        MaterialCardView card = Ui.card(a, Ui.CONTAINER_LOW);
+        LinearLayout list = Ui.inner(card);
+        list.setPadding(Ui.dp(a, 4), Ui.dp(a, 8), Ui.dp(a, 4), Ui.dp(a, 8));
 
         int shown = 0;
         for (final Data.Entry e : all) {
             if (shown++ >= HISTORY_LIMIT) break;
             String name;
             String sign;
-            int color;
+            int icon;
+            int container;
+            int onContainer;
+            int amountColor;
             if (e.type == Data.Entry.PAY) {
                 name = "Got paid" + (e.source.isEmpty() ? "" : " (" + e.source + ")");
                 sign = "+";
-                color = Ui.GREEN;
+                icon = R.drawable.ic_add;
+                container = Ui.PRIMARY_CONTAINER;
+                onContainer = Ui.ON_PRIMARY_CONTAINER;
+                amountColor = Ui.PRIMARY;
             } else if (e.type == Data.Entry.DEBT) {
                 Data.Debt debt = d.debt(e.debtId);
                 name = "Paid " + (debt == null ? "a deleted debt" : debt.name);
                 sign = "-";
-                color = Ui.BLUE;
+                icon = R.drawable.ic_check;
+                container = Ui.TERTIARY_CONTAINER;
+                onContainer = Ui.ON_TERTIARY_CONTAINER;
+                amountColor = Ui.ON_SURFACE;
             } else {
                 name = e.note.isEmpty() ? "Spent" : "Spent: " + e.note;
                 sign = "-";
-                color = Ui.AMBER;
+                icon = R.drawable.ic_remove;
+                container = Ui.SECONDARY_CONTAINER;
+                onContainer = Ui.ON_SECONDARY_CONTAINER;
+                amountColor = Ui.ON_SURFACE;
             }
             final String when = Fmt.shortDate(Weeks.dateOf(e.time, zone));
             final String amount = sign + Fmt.dh(e.amount);
             final String description = name + "\n" + when + "\n" + amount;
 
-            LinearLayout c = Ui.card(a);
-            LinearLayout line = Ui.hbox(a);
-            LinearLayout left = Ui.vbox(a);
-            left.addView(Ui.text(a, name, 16, Ui.TEXT, true));
-            left.addView(Ui.text(a, when, 13, Ui.MUTED, false));
-            line.addView(left, new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
-            line.addView(Ui.text(a, amount, 17, color, true));
-            c.addView(line);
-            c.setOnClickListener(v -> Dialogs.deleteEntry(a, e, description));
-            out.addView(c);
+            LinearLayout rowView = Ui.hbox(a);
+            rowView.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            rowView.setPadding(Ui.dp(a, 12), Ui.dp(a, 10), Ui.dp(a, 12), Ui.dp(a, 10));
+            rowView.addView(Ui.badge(a, icon, container, onContainer));
+            LinearLayout texts = Ui.vbox(a);
+            texts.addView(Ui.text(a, name, Ui.BODY_LARGE, Ui.ON_SURFACE));
+            texts.addView(Ui.text(a, when, Ui.BODY_SMALL, Ui.ON_SURFACE_VARIANT));
+            rowView.addView(texts, new LinearLayout.LayoutParams(0, Ui.WRAP, 1f));
+            rowView.addView(Ui.text(a, amount, Ui.TITLE_MEDIUM, amountColor));
+            rowView.setBackground(clickableBackground(a));
+            rowView.setOnClickListener(v -> Dialogs.deleteEntry(a, e, description));
+            list.addView(rowView, new LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP));
         }
+        out.addView(card);
         if (all.size() > HISTORY_LIMIT) {
             out.addView(Ui.text(a, "Showing the newest " + HISTORY_LIMIT + " of " + all.size() + " entries.",
-                    13, Ui.MUTED, false));
+                    Ui.BODY_SMALL, Ui.ON_SURFACE_VARIANT));
         }
+    }
+
+    /** Standard ripple used for tappable rows. */
+    private static android.graphics.drawable.Drawable clickableBackground(MainActivity a) {
+        android.util.TypedValue tv = new android.util.TypedValue();
+        a.getTheme().resolveAttribute(android.R.attr.selectableItemBackground, tv, true);
+        return a.getDrawable(tv.resourceId);
     }
 
     // ---------- Debts ----------
 
     static void debts(MainActivity a, LinearLayout out) {
         final Data d = a.data;
-        out.addView(title(a, "Debts"));
-        TextView hint = Ui.text(a, "With several debts, finish the smallest one first.", 14, Ui.MUTED, false);
-        hint.setPadding(0, 0, 0, Ui.dp(a, 14));
-        out.addView(hint);
+        header(a, out, "Debts", "With several debts, finish the smallest one first.");
 
         Data.Debt focus = d.focusDebt();
         for (final Data.Debt x : d.debts) {
             long bal = d.balance(x);
-            LinearLayout c = Ui.card(a);
-            c.addView(Ui.text(a, x.name, 18, Ui.TEXT, true));
-            c.addView(Ui.text(a, bal > 0 ? Fmt.dh(bal) + " left" : "Paid off", 22, bal > 0 ? Ui.TEXT : Ui.GREEN, true));
-            c.addView(Ui.bar(a, Payoff.percentPaid(x.start, bal), Ui.GREEN));
-            c.addView(Ui.text(a, "Started at " + Fmt.dh(x.start), 13, Ui.MUTED, false));
-            if (x == focus && d.debts.size() > 1) {
-                TextView f = Ui.text(a, "Pay this one first", 13, Ui.GREEN, true);
-                f.setPadding(0, Ui.dp(a, 4), 0, 0);
-                c.addView(f);
-            }
+            boolean first = x == focus && d.debts.size() > 1;
+            MaterialCardView card = Ui.card(a, first ? Ui.PRIMARY_CONTAINER : Ui.CONTAINER_HIGH);
+            int on = first ? Ui.ON_PRIMARY_CONTAINER : Ui.ON_SURFACE;
+            int onVar = first ? Ui.ON_PRIMARY_CONTAINER : Ui.ON_SURFACE_VARIANT;
+            LinearLayout c = Ui.inner(card);
+            c.addView(Ui.text(a, x.name, Ui.TITLE_LARGE, on));
+            c.addView(Ui.text(a, bal > 0 ? Fmt.dh(bal) + " left" : "Paid off", Ui.HEADLINE_SMALL, on));
+            c.addView(Ui.progress(a, Payoff.percentPaid(x.start, bal), Ui.color(a, Ui.PRIMARY),
+                    Ui.color(a, first ? Ui.SECONDARY_CONTAINER : Ui.CONTAINER_LOW)));
+            c.addView(Ui.text(a, "Started at " + Fmt.dh(x.start)
+                    + (first ? "  •  Pay this one first" : ""), Ui.BODY_MEDIUM, onVar));
             LinearLayout row = Ui.hbox(a);
-            row.setPadding(0, Ui.dp(a, 10), 0, 0);
-            row.addView(Ui.chip(a, "Edit", v -> Dialogs.debtForm(a, x)));
-            row.addView(Ui.chip(a, "Delete", v -> Dialogs.deleteDebt(a, x)));
-            c.addView(row);
-            out.addView(c);
+            row.setGravity(android.view.Gravity.END);
+            row.addView(Ui.textButton(a, "Edit", v -> Dialogs.debtForm(a, x)));
+            row.addView(Ui.textButton(a, "Delete", v -> Dialogs.deleteDebt(a, x)));
+            Ui.add(c, row, 8);
+            out.addView(card);
         }
-        out.addView(Ui.button(a, "+ Add debt", Ui.GREEN, v -> Dialogs.debtForm(a, null)), space(a, 4));
+        Ui.add(out, Ui.filled(a, "Add debt", R.drawable.ic_add, v -> Dialogs.debtForm(a, null)), 4);
     }
 
     // ---------- Settings ----------
 
-    private static Spinner spinner(MainActivity a, List<String> items, int selected) {
-        Spinner sp = new Spinner(a);
-        ArrayAdapter<String> ad = new ArrayAdapter<>(a, android.R.layout.simple_spinner_item, items);
-        ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        sp.setAdapter(ad);
-        sp.setSelection(selected);
-        return sp;
-    }
-
-    private static TextView label(MainActivity a, String s) {
-        TextView t = Ui.text(a, s, 13, Ui.MUTED, false);
-        t.setPadding(0, Ui.dp(a, 12), 0, 0);
-        return t;
-    }
-
     private static EditText field(MainActivity a, LinearLayout c, String label, long value) {
-        c.addView(label(a, label));
-        EditText e = Ui.numberField(a, "0");
+        EditText e = Ui.input(a, c, label, Ui.NUMBER, "dh");
         if (value > 0) e.setText(String.valueOf(value));
-        c.addView(e);
         return e;
     }
 
     static void settings(MainActivity a, LinearLayout out) {
         final Data.Settings s = a.data.settings;
-        out.addView(title(a, "Settings"));
-        TextView gap = Ui.text(a, "", 8, Ui.MUTED, false);
-        out.addView(gap);
+        header(a, out, "Settings", "Your plan and reminder");
 
-        LinearLayout plan = Ui.card(a);
-        plan.addView(Ui.text(a, "Your plan", 18, Ui.TEXT, true));
+        MaterialCardView planCard = Ui.card(a, Ui.CONTAINER_LOW);
+        LinearLayout plan = Ui.inner(planCard);
+        plan.addView(Ui.text(a, "Your plan", Ui.TITLE_LARGE, Ui.ON_SURFACE));
         final EditText target = field(a, plan, "Debt payment each week", s.weeklyDebtTarget);
         final EditText pay = field(a, plan, "Pay each week (rough)", s.weeklyPay);
         final EditText cash = field(a, plan, "Cash you had when you started", s.startingCash);
-        out.addView(plan);
+        out.addView(planCard);
 
-        LinearLayout rem = Ui.card(a);
-        rem.addView(Ui.text(a, "Weekly reminder", 18, Ui.TEXT, true));
-        final Switch on = new Switch(a);
+        MaterialCardView remCard = Ui.card(a, Ui.CONTAINER_LOW);
+        LinearLayout rem = Ui.inner(remCard);
+        rem.addView(Ui.text(a, "Weekly reminder", Ui.TITLE_LARGE, Ui.ON_SURFACE));
+        final MaterialSwitch on = new MaterialSwitch(a);
         on.setText("Remind me on pay day");
         on.setChecked(s.reminderOn);
-        on.setPadding(0, Ui.dp(a, 8), 0, 0);
-        rem.addView(on);
-        rem.addView(label(a, "Day"));
+        Ui.add(rem, on, 8);
         List<String> days = new ArrayList<>();
         for (int i = 1; i <= 7; i++) days.add(DayOfWeek.of(i).getDisplayName(TextStyle.FULL, Locale.ENGLISH));
-        final Spinner day = spinner(a, days, s.reminderDay - 1);
-        rem.addView(day);
-        rem.addView(label(a, "Time"));
+        final Ui.Dropdown day = Ui.dropdown(a, "Day", days, s.reminderDay - 1);
+        Ui.add(rem, day.layout, 12);
         List<String> hours = new ArrayList<>();
         for (int h = 0; h < 24; h++) hours.add(String.format(Locale.ENGLISH, "%02d:00", h));
-        final Spinner hour = spinner(a, hours, s.reminderHour);
-        rem.addView(hour);
-        out.addView(rem);
+        final Ui.Dropdown hour = Ui.dropdown(a, "Time", hours, s.reminderHour);
+        Ui.add(rem, hour.layout, 12);
+        out.addView(remCard);
 
-        out.addView(Ui.button(a, "Save", Ui.GREEN, v -> {
-            String t = target.getText().toString().trim();
-            String p = pay.getText().toString().trim();
-            String c = cash.getText().toString().trim();
-            long tv = t.isEmpty() ? 0 : Fmt.parseAmount(t);
-            long pv = p.isEmpty() ? 0 : Fmt.parseAmount(p);
-            long cv = c.isEmpty() ? 0 : Fmt.parseAmount(c);
+        out.addView(Ui.filled(a, "Save", 0, v -> {
+            long tv = parse(target);
+            long pv = parse(pay);
+            long cv = parse(cash);
             if (tv < 0 || pv < 0 || cv < 0) {
-                Toast.makeText(a, "Use whole numbers only", Toast.LENGTH_SHORT).show();
+                a.snack("Use whole numbers only");
                 return;
             }
             s.weeklyDebtTarget = tv;
             s.weeklyPay = pv;
             s.startingCash = cv;
             s.reminderOn = on.isChecked();
-            s.reminderDay = day.getSelectedItemPosition() + 1;
-            s.reminderHour = hour.getSelectedItemPosition();
+            s.reminderDay = day.index + 1;
+            s.reminderHour = hour.index;
             if (s.reminderOn) a.askNotificationPermission();
             a.changed();
-            Toast.makeText(a, "Saved", Toast.LENGTH_SHORT).show();
-        }), space(a, 0));
+            a.snack("Saved");
+        }));
 
-        LinearLayout backup = Ui.card(a);
-        backup.setLayoutParams(space(a, 16));
-        backup.addView(Ui.text(a, "Backup", 18, Ui.TEXT, true));
-        TextView note = Ui.text(a, "Your data lives only on this phone. If you lose the phone you lose the data, "
-                + "so share a backup to yourself now and then.", 14, Ui.MUTED, false);
-        note.setPadding(0, Ui.dp(a, 4), 0, Ui.dp(a, 10));
-        backup.addView(note);
+        MaterialCardView backupCard = Ui.card(a, Ui.CONTAINER_LOW);
+        ((LinearLayout.LayoutParams) backupCard.getLayoutParams()).topMargin = Ui.dp(a, 20);
+        LinearLayout backup = Ui.inner(backupCard);
+        backup.addView(Ui.text(a, "Backup", Ui.TITLE_LARGE, Ui.ON_SURFACE));
+        line(a, backup, "Your data lives only on this phone. If you lose the phone you lose the data, "
+                + "so share a backup to yourself now and then.", Ui.BODY_MEDIUM, Ui.ON_SURFACE_VARIANT, 4);
         LinearLayout row = Ui.hbox(a);
-        row.addView(Ui.chip(a, "Share backup", v -> {
+        row.addView(Ui.textButton(a, "Share backup", v -> {
             Intent i = new Intent(Intent.ACTION_SEND);
             i.setType("text/plain");
             i.putExtra(Intent.EXTRA_SUBJECT, "Pay & Debt backup");
             i.putExtra(Intent.EXTRA_TEXT, Store.toJson(a.data, true));
             a.startActivity(Intent.createChooser(i, "Save backup"));
         }));
-        row.addView(Ui.chip(a, "Restore", v -> Dialogs.restore(a)));
-        row.addView(Ui.chip(a, "Erase all", v -> Dialogs.eraseAll(a)));
-        backup.addView(row);
-        out.addView(backup);
+        row.addView(Ui.textButton(a, "Restore", v -> Dialogs.restore(a)));
+        Ui.add(backup, row, 8);
+        LinearLayout row2 = Ui.hbox(a);
+        View erase = Ui.textButton(a, "Erase all", v -> Dialogs.eraseAll(a));
+        ((com.google.android.material.button.MaterialButton) erase)
+                .setTextColor(Ui.color(a, Ui.ERROR));
+        row2.addView(erase);
+        backup.addView(row2);
+        out.addView(backupCard);
 
-        TextView version = Ui.text(a, "Pay & Debt 1.0", 12, Ui.MUTED, false);
-        version.setPadding(0, Ui.dp(a, 8), 0, 0);
-        out.addView(version);
+        out.addView(Ui.text(a, "Pay & Debt 2.0", Ui.BODY_SMALL, Ui.ON_SURFACE_VARIANT));
+    }
+
+    /** Empty counts as 0; anything that is not a whole number gives -1. */
+    private static long parse(EditText e) {
+        String t = e.getText().toString().trim();
+        return t.isEmpty() ? 0 : Fmt.parseAmount(t);
     }
 }

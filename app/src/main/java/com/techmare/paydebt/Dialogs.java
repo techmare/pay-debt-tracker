@@ -1,14 +1,13 @@
 package com.techmare.paydebt;
 
-import android.app.AlertDialog;
-import android.text.InputType;
-import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
+
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import com.techmare.paydebt.core.Budget;
 import com.techmare.paydebt.core.Fmt;
@@ -18,7 +17,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Every pop-up form in the app. */
+/** Every pop-up form in the app, as Material 3 dialogs. */
 final class Dialogs {
     private Dialogs() {}
 
@@ -32,21 +31,7 @@ final class Dialogs {
     }
 
     private static void toast(MainActivity a, String msg) {
-        Toast.makeText(a, msg, Toast.LENGTH_SHORT).show();
-    }
-
-    private static TextView label(MainActivity a, String s) {
-        TextView t = Ui.text(a, s, 13, Ui.MUTED, false);
-        t.setPadding(0, Ui.dp(a, 12), 0, 0);
-        return t;
-    }
-
-    private static Spinner spinner(MainActivity a, List<String> items) {
-        Spinner sp = new Spinner(a);
-        ArrayAdapter<String> ad = new ArrayAdapter<>(a, android.R.layout.simple_spinner_item, items);
-        ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        sp.setAdapter(ad);
-        return sp;
+        a.snack(msg);
     }
 
     /** Debts that still have a balance, focus debt first. */
@@ -65,7 +50,7 @@ final class Dialogs {
     }
 
     static void confirm(MainActivity a, String title, String message, String okLabel, Runnable onOk) {
-        new AlertDialog.Builder(a)
+        new MaterialAlertDialogBuilder(a)
                 .setTitle(title)
                 .setMessage(message)
                 .setPositiveButton(okLabel, (dlg, which) -> onOk.run())
@@ -77,19 +62,11 @@ final class Dialogs {
 
     static void setup(MainActivity a) {
         LinearLayout f = Ui.form(a);
-        f.addView(Ui.text(a, "A few numbers to start. You can change them later.", 14, Ui.MUTED, false));
-        f.addView(label(a, "What do you owe? (name, optional)"));
-        final EditText name = Ui.textField(a, "e.g. Loan");
-        f.addView(name);
-        f.addView(label(a, "How much do you owe now?"));
-        final EditText owed = Ui.numberField(a, "0");
-        f.addView(owed);
-        f.addView(label(a, "How much will you pay toward it each week?"));
-        final EditText target = Ui.numberField(a, "0");
-        f.addView(target);
-        f.addView(label(a, "Roughly how much do you earn each week?"));
-        final EditText pay = Ui.numberField(a, "0");
-        f.addView(pay);
+        f.addView(Ui.text(a, "A few numbers to start. You can change them later.", Ui.BODY_MEDIUM, Ui.ON_SURFACE_VARIANT));
+        final EditText name = Ui.input(a, f, "What do you owe? (name, optional)", Ui.TEXT, null);
+        final EditText owed = Ui.input(a, f, "How much do you owe now?", Ui.NUMBER, "dh");
+        final EditText target = Ui.input(a, f, "Paid toward it each week", Ui.NUMBER, "dh");
+        final EditText pay = Ui.input(a, f, "Roughly earned each week", Ui.NUMBER, "dh");
 
         Ui.showForm(a, "Set up", f, "Start", () -> {
             long o = read(owed), t = read(target), p = read(pay);
@@ -100,7 +77,8 @@ final class Dialogs {
             if (o > 0) {
                 Data.Debt debt = new Data.Debt();
                 debt.id = a.data.newId();
-                debt.name = name.getText().toString().trim().isEmpty() ? "Debt" : name.getText().toString().trim();
+                String n = name.getText().toString().trim();
+                debt.name = n.isEmpty() ? "Debt" : n;
                 debt.start = o;
                 a.data.debts.add(debt);
             }
@@ -123,28 +101,28 @@ final class Dialogs {
         final List<Data.Debt> open = openDebts(d);
 
         LinearLayout f = Ui.form(a);
-        f.addView(label(a, "Amount received"));
-        final EditText amount = Ui.numberField(a, "0");
-        f.addView(amount);
+        final EditText amount = Ui.input(a, f, "Amount received", Ui.NUMBER, "dh");
 
-        f.addView(label(a, "From"));
-        List<String> sources = new ArrayList<>();
-        sources.add("Salary");
-        sources.add("Commission");
-        sources.add("Other");
-        final Spinner source = spinner(a, sources);
-        f.addView(source);
+        TextView from = Ui.text(a, "From", Ui.LABEL_LARGE, Ui.ON_SURFACE_VARIANT);
+        from.setPadding(0, Ui.dp(a, 16), 0, Ui.dp(a, 8));
+        f.addView(from);
+        final String[] sources = {"Salary", "Commission", "Other"};
+        final Ui.Segmented source = Ui.segmented(a, sources, 0);
+        f.addView(source.group);
 
-        final TextView preview = Ui.text(a, "", 14, Ui.TEXT, false);
-        preview.setPadding(0, Ui.dp(a, 14), 0, 0);
+        final TextView preview = Ui.text(a, "", Ui.BODY_LARGE, Ui.ON_SURFACE);
+        preview.setPadding(0, Ui.dp(a, 16), 0, 0);
         f.addView(preview);
 
-        final CheckBox alsoLog = new CheckBox(a);
-        final Spinner debtPick = spinner(a, debtLabels(d, open));
-        if (!open.isEmpty() && reserved > 0) {
+        final MaterialCheckBox alsoLog = new MaterialCheckBox(a);
+        final boolean canLog = !open.isEmpty() && reserved > 0;
+        final List<String> pickLabels = open.isEmpty() ? new ArrayList<String>() : debtLabels(d, open);
+        if (pickLabels.isEmpty()) pickLabels.add("-");
+        final Ui.Dropdown debtPick = Ui.dropdown(a, "Debt", pickLabels, 0);
+        if (canLog) {
             alsoLog.setChecked(true);
             f.addView(alsoLog);
-            f.addView(debtPick);
+            Ui.add(f, debtPick.layout, 4);
         }
 
         Ui.Watcher w = new Ui.Watcher() {
@@ -166,13 +144,12 @@ final class Dialogs {
                 toast(a, "Enter an amount");
                 return false;
             }
-            String src = (String) source.getSelectedItem();
-            a.data.add(Data.Entry.PAY, amt, 0, "", src);
+            a.data.add(Data.Entry.PAY, amt, 0, "", sources[source.index()]);
             long toDebt = Budget.splitPay(amt, reserved)[0];
-            if (alsoLog.isShown() && alsoLog.isChecked() && toDebt > 0 && !open.isEmpty()) {
-                Data.Debt target = open.get(Math.max(0, debtPick.getSelectedItemPosition()));
-                long pay = Math.min(toDebt, a.data.balance(target));
-                if (pay > 0) a.data.add(Data.Entry.DEBT, pay, target.id, "", "");
+            if (canLog && alsoLog.isChecked() && toDebt > 0) {
+                Data.Debt chosen = open.get(Math.max(0, Math.min(debtPick.index, open.size() - 1)));
+                long pay = Math.min(toDebt, a.data.balance(chosen));
+                if (pay > 0) a.data.add(Data.Entry.DEBT, pay, chosen.id, "", "");
             }
             a.changed();
             return true;
@@ -189,14 +166,11 @@ final class Dialogs {
             return;
         }
         LinearLayout f = Ui.form(a);
-        f.addView(label(a, "Which debt"));
-        final Spinner pick = spinner(a, debtLabels(d, open));
-        f.addView(pick);
-        f.addView(label(a, "Amount paid"));
-        final EditText amount = Ui.numberField(a, "0");
+        final Ui.Dropdown pick = Ui.dropdown(a, "Which debt", debtLabels(d, open), 0);
+        Ui.add(f, pick.layout, 4);
+        final EditText amount = Ui.input(a, f, "Amount paid", Ui.NUMBER, "dh");
         long suggested = Math.min(d.settings.weeklyDebtTarget, d.balance(open.get(0)));
         if (suggested > 0) amount.setText(String.valueOf(suggested));
-        f.addView(amount);
 
         Ui.showForm(a, "Paid debt", f, "Save", () -> {
             long amt = read(amount);
@@ -204,7 +178,7 @@ final class Dialogs {
                 toast(a, "Enter an amount");
                 return false;
             }
-            Data.Debt target = open.get(Math.max(0, pick.getSelectedItemPosition()));
+            Data.Debt target = open.get(Math.max(0, Math.min(pick.index, open.size() - 1)));
             long left = a.data.balance(target);
             if (amt > left) {
                 toast(a, "That is more than the " + Fmt.dh(left) + " left on this debt");
@@ -220,21 +194,19 @@ final class Dialogs {
 
     static void spent(MainActivity a) {
         LinearLayout f = Ui.form(a);
-        f.addView(label(a, "Amount spent"));
-        final EditText amount = Ui.numberField(a, "0");
-        f.addView(amount);
-        f.addView(label(a, "What for (optional)"));
-        final EditText note = Ui.textField(a, "e.g. Food");
-        f.addView(note);
+        final EditText amount = Ui.input(a, f, "Amount spent", Ui.NUMBER, "dh");
+        final EditText note = Ui.input(a, f, "What for (optional)", Ui.TEXT, null);
 
-        LinearLayout chips = Ui.hbox(a);
-        chips.setPadding(0, Ui.dp(a, 10), 0, 0);
+        ChipGroup chips = new ChipGroup(a);
         String[] names = {"Food", "Transport", "Phone", "Other"};
         for (String n : names) {
             final String chosen = n;
-            chips.addView(Ui.chip(a, n, v -> note.setText(chosen)));
+            Chip chip = new Chip(a);
+            chip.setText(n);
+            chip.setOnClickListener(v -> note.setText(chosen));
+            chips.addView(chip);
         }
-        f.addView(chips);
+        Ui.add(f, chips, 12);
 
         Ui.showForm(a, "Spent", f, "Save", () -> {
             long amt = read(amount);
@@ -253,16 +225,15 @@ final class Dialogs {
     /** Pass null to add a new debt. */
     static void debtForm(MainActivity a, final Data.Debt existing) {
         LinearLayout f = Ui.form(a);
-        f.addView(label(a, "Name"));
-        final EditText name = Ui.textField(a, "e.g. Loan");
+        final EditText name = Ui.input(a, f, "Name", Ui.TEXT, null);
         if (existing != null) name.setText(existing.name);
-        f.addView(name);
-        f.addView(label(a, existing == null ? "Amount you owe now" : "Original amount"));
-        final EditText amount = Ui.numberField(a, "0");
+        final EditText amount = Ui.input(a, f,
+                existing == null ? "Amount you owe now" : "Original amount", Ui.NUMBER, "dh");
         if (existing != null) amount.setText(String.valueOf(existing.start));
-        f.addView(amount);
         if (existing != null) {
-            f.addView(Ui.text(a, "Payments you logged are subtracted from the original amount.", 12, Ui.MUTED, false));
+            TextView note = Ui.text(a, "Payments you logged are subtracted from the original amount.",
+                    Ui.BODY_SMALL, Ui.ON_SURFACE_VARIANT);
+            Ui.add(f, note, 8);
         }
 
         Ui.showForm(a, existing == null ? "Add debt" : "Edit debt", f, "Save", () -> {
@@ -309,13 +280,9 @@ final class Dialogs {
 
     static void restore(MainActivity a) {
         LinearLayout f = Ui.form(a);
-        f.addView(Ui.text(a, "Paste the backup text you saved earlier. It replaces everything in the app.", 14, Ui.MUTED, false));
-        final EditText box = new EditText(a);
-        box.setHint("Paste backup here");
-        box.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        box.setMinLines(4);
-        box.setMaxLines(8);
-        f.addView(box);
+        f.addView(Ui.text(a, "Paste the backup text you saved earlier. It replaces everything in the app.",
+                Ui.BODY_MEDIUM, Ui.ON_SURFACE_VARIANT));
+        final EditText box = Ui.input(a, f, "Paste backup here", Ui.MULTILINE, null);
 
         Ui.showForm(a, "Restore backup", f, "Restore", () -> {
             final Data fresh;
