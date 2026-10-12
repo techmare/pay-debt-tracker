@@ -1,6 +1,6 @@
 # Pay & Debt
 
-A small native Android app (plain Java, no Kotlin) built with Google's Material 3 components. It answers two questions:
+A small native Android app (Kotlin and Jetpack Compose with Material 3, on top of a tested pure-Java core) that answers two questions:
 
 1. **When will I be debt-free?**
 2. **How much can I spend this week without missing my debt payment?**
@@ -22,7 +22,12 @@ Money is whole dirhams ("dh"). Weeks start on Monday.
 
 ## Look and feel
 
-Material 3: tonal cards, bottom navigation bar, outlined text fields, segmented buttons, M3 dialogs and type scale. It follows the phone's light/dark setting. On Android 12+ the colours come from the wallpaper (dynamic colour); on older phones, or if you delete the `DynamicColors` line in `MainActivity`, it uses the green theme in `res/values/colors.xml`.
+Material 3 built with Jetpack Compose: top app bar, bottom navigation bar, floating action button, tonal cards, list items, segmented buttons and M3 dialogs.
+
+- **Free to spend** is the large figure on Home, with this week's debt payment as a progress bar under it.
+- **The week grid** draws your whole payoff as one square per week, 13 to a row (one quarter a row): paid weeks filled, missed weeks hollow, this week ringed, weeks still to go empty.
+- **History** is grouped by week with weekly totals.
+- Light and dark follow the phone. On Android 12+ the colours come from the wallpaper; Settings has a switch to use the teal and amber theme instead (`Theme.kt`).
 
 ## Get the APK
 
@@ -35,7 +40,7 @@ Open the file on your phone and allow "install from this source" when asked. Ins
 
 ## Build it yourself
 
-Needs JDK 17, the Android SDK (platform 35, build-tools 35.0.0), Gradle 8.10 and internet access for the one dependency, `com.google.android.material:material:1.12.0`.
+Needs JDK 17, the Android SDK (platform 35, build-tools 35.0.0), Gradle 8.10 and internet access for the Compose libraries (Compose BOM 2024.10.01, Kotlin 2.0.21).
 
 ```
 gradle assembleRelease
